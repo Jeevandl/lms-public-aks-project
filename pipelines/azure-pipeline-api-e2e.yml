@@ -1,0 +1,70 @@
+# Starter pipeline
+# Start with a minimal pipeline that you can customize to build and deploy your code.
+# Add steps that build, run tests, deploy, and more:
+# https://aka.ms/yaml
+
+trigger:
+  - dev
+
+pool:
+  vmImage: ubuntu-latest
+
+steps:
+  # Static analysis of code quality and security vulnerabilities using SonarQube
+  # [Azure DevOps integration](https://docs.sonarqube.org/latest/devops-platform-integration/azure-devops-integration/)
+  # Create a service connection to SonarQube server and use it in the following task
+  - task: SonarQubePrepare@5
+    inputs:
+      SonarQube: "SonaQubeSC"
+      scannerMode: "CLI"
+      configMode: "manual"
+      cliProjectKey: "LMS_Project_Demo_LMS_Project_Demo_AYhOhKm33zbdQQY5BWTt"
+      cliSources: "."
+
+  # Run SonarQube analysis
+  - task: SonarQubeAnalyze@5
+
+  # Publish SonarQube analysis results
+  - task: SonarQubePublish@5
+    inputs:
+      pollingTimeoutSec: "300"
+
+  # Install node modules and use .npmrc file to authenticate to Azure Artifacts
+  - task: Npm@1
+    inputs:
+      command: "install"
+      workingDir: "api"
+      verbose: true
+
+  # Run unit tests
+  - task: CmdLine@2
+    displayName: Run Test Cases
+    inputs:
+      script: |
+        cd api
+        npm run test || exit 1
+
+  # Build docker image and push to ACR
+  # Create a service connection to Azure Container Registry and use it in the following task
+  - task: Docker@2
+    inputs:
+      containerRegistry: "for-pipelines"
+      repository: "lms-backend"
+      command: "buildAndPush"
+      Dockerfile: "**/api/Dockerfile"
+
+  # Deploy it app service web app
+  # Enable admin user in the ACR
+  # Make sure following configurations are added in the app service web app
+  # DOCKER_REGISTRY_SERVER_PASSWORD=password
+  # DOCKER_REGISTRY_SERVER_URL=https://acrname.azurecr.io
+  # DOCKER_REGISTRY_SERVER_USERNAME=acrname
+  - task: AzureRmWebAppDeployment@4
+    inputs:
+      ConnectionType: "AzureRM"
+      azureSubscription: "Azure subscription 1(<subscription id>)"
+      appType: "webAppContainer"
+      WebAppName: "dl-e2e-be-pipeline"
+      DockerNamespace: "dle2epipeline.azurecr.io"
+      DockerRepository: "lms-backend"
+      DockerImageTag: "$(Build.BuildId)"
