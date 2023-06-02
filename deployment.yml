@@ -1,0 +1,34 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: testaksbackend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: testaksbackend
+  template:
+    metadata:
+      labels:
+        app: testaksbackend
+    spec:
+      containers:
+        - name: testaksbackend
+          image: tmpacr1.azurecr.io/testaksbackend
+          ports:
+            - containerPort: 8080
+          env:
+            - name: PORT
+              value: "8080"
+            - name: DATABASE_URL
+              value: "postgres://postgres:postgres@tmpaks-postgresql:5432/postgres"
+            - name: JWT_SECRET
+              value: "secret"
+            - name: MODE
+              value: "dev"
+            - name: NODE_ENV
+              value: "production"
+            - name: REDIS_HOST
+              value: "tmpaks-redis-master:6379"
+            - name: REDIS_PASSWORD
+              value: "redispassword"
